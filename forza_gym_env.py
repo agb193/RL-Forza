@@ -35,7 +35,7 @@ class ForzaEnv(gym.Env):
                 high=np.array([1.0, 1.0, 1.0], dtype=np.float32),
                 dtype=np.float32
             )
-        # Espacio de Observaciones (Los 7 datos físicos que limpiamos)
+        # Espacio de Observaciones 
         # [RPM, Velocidad, LINE, SLIP_DEL, SLIP_TRAS, ANG_VEL_Y, ACCEL_Z]
         self.observation_space = spaces.Box(
             low=np.array([0.0, 0.0, -127.0, 0.0, 0.0, -10.0, -50.0], dtype=np.float32),
@@ -70,7 +70,7 @@ class ForzaEnv(gym.Env):
 
     def step(self, action):
         
-        # 1. Aplicar las acciones en el mando virtual
+        # Aplicar las acciones en el mando virtual
         steer_input = action[0]
         acc_input = action[1]
         brake_input = action[2]
@@ -80,7 +80,6 @@ class ForzaEnv(gym.Env):
         # Mapear el volante al stick izquierdo del mando de Xbox (-32768 a 32767)
         self.gamepad.left_joystick(x_value=int(steer_input * 32767), y_value=0)
         
-        # Mapear acelerador y freno independientes basados en el valor continuo
         if acc_input > 0:
             self.gamepad.right_trigger(value=int(acc_input * 255))  # Acelerar
             self.gamepad.left_trigger(value=0)
@@ -90,17 +89,17 @@ class ForzaEnv(gym.Env):
             
         self.gamepad.update() # Envía los inputs al juego
         
-        # 2. Leer el nuevo estado físico resultante
+        # Leer el nuevo estado físico resultante
         state = self._get_telemetry()
         speed_kmh = state[1]
         perfectdriveLine = state[2]
         accel_z = state[6]
         
-        # 3. Lógica de Recompensa Pura y detección de fin de episodio
+        # Lógica de Recompensa Pura y detección de fin de episodio
         done = False
         truncated = False
         
-        # Recompensa base: premiar ir rápido si estás en la línea
+        # Recompensa base
         desvio = abs(perfectdriveLine)/127
         reward = 20 * (1.0 - desvio) - (desvio)
         
@@ -127,12 +126,12 @@ class ForzaEnv(gym.Env):
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         
-        # 1. Soltar mandos al instante
+        # Soltar mandos al instante
         self.gamepad.reset()
         self.gamepad.update()
         time.sleep(0.1)
         
-        # 2. Secuencia exacta de botones para reiniciar la carrera en el Forza
+        # Secuencia exacta de botones para reiniciar la carrera en el Forza
         self.gamepad.press_button(button=vg.XUSB_BUTTON.XUSB_GAMEPAD_START)
         self.gamepad.update()
         time.sleep(0.1)
@@ -172,7 +171,7 @@ class ForzaEnv(gym.Env):
         print("Esperando 3 segundos finales para sincronizar la salida...")
         time.sleep(5.0)
         
-        # 3. Limpieza absoluta del buffer de red para tirar a la basura los datos de cuando la IA pensaba
+        # Limpieza del buffer
         self.sock.setblocking(False)
         while True:
             try:
@@ -181,11 +180,11 @@ class ForzaEnv(gym.Env):
                 break
         self.sock.setblocking(True)
         
-        # 4. Ponemos todos los contadores de peligro a cero antes de dar luz verde
+        # Ponemo contadores de peligro a cero
         self.steps_in_episode = 0
         self.crash_occurred = False 
         
-        # 5. Devolver estado puro de la parrilla de salida
+        # Devolver estado puro de la parrilla de salida
         state = self._get_telemetry()
         info = {}
         return state, info
